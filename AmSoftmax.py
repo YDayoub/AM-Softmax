@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 class AdMSoftmaxLoss(nn.Module):
     
-    def __init__(self, in_features, out_features, s=30.0, m=0.4):
+    def __init__(self, in_features, out_features, s=30.0, m=0.4, eps = 1e-7):
         '''
         AM Softmax Loss
         '''
@@ -13,6 +13,7 @@ class AdMSoftmaxLoss(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.fc = nn.Linear(in_features, out_features, bias=False)
+        self.eps = eps
 
     def forward(self, x, labels):
         '''
@@ -36,7 +37,7 @@ class AdMSoftmaxLoss(nn.Module):
         classes = torch.arange(num_classes).long().to(x.device)
         labels = labels.unsqueeze(1).expand(batch_size, num_classes)
         mask = labels.eq(classes.expand(batch_size, num_classes)).to(x.device)
-        excl = torch.where(mask,torch.full_like(wf, -9e15),wf)
-        denominator = torch.exp(numerator) + torch.sum(torch.exp(self.s * excl), dim=1)
-        L = numerator - torch.log(denominator)
+        excl = torch.where(mask,torch.full_like(wf, -9e3),self.s *wf)
+        denominator = torch.exp(numerator) + torch.sum(torch.exp(excl), dim=1)
+        L = numerator - torch.log(denominator+ self.eps)
         return -torch.mean(L)
